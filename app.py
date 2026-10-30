@@ -4,362 +4,387 @@ import pandas as pd
 from pydantic import BaseModel, Field
 from typing import List
 from datetime import datetime
+import uuid
 from google import genai
 from google.genai import types
 from supabase import create_client, Client
 
 # -------------------------------------------------------------
-# 1. 頁面配置與 CSS 深度美化 (屏蔽 Streamlit Share/Toolbar 與原生邊界)
+# 1. 頁面配置與高質感 Mobile-First CSS
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="NutriSnap AI",
+    page_title="NutriSnap - 你的個人AI減重營養師",
     page_icon="🥑",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
 CUSTOM_CSS = """
 <style>
-/* 1. 屏蔽 Streamlit 頂端導覽列、Share 按鈕、選單與頁尾 */
-header[data-testid="stHeader"] {
+/* 完全隱藏 Streamlit 原生頂部工具列、選單、分享按鈕與頁尾 */
+header[data-testid="stHeader"], #MainMenu, footer, .stAppDeployButton {
     display: none !important;
-}
-#MainMenu {
     visibility: hidden !important;
-}
-footer {
-    visibility: hidden !important;
-}
-.stAppDeployButton {
-    display: none !important;
 }
 
-/* 2. 頁面邊界與背景質感優化 */
+/* 針對行動端進行排版優化 */
 .main .block-container {
-    padding-top: 1.5rem !important;
-    padding-bottom: 2rem !important;
-    max-width: 900px !important;
+    padding-top: 1.2rem !important;
+    padding-bottom: 3rem !important;
+    max-width: 540px !important;
+    margin: 0 auto !important;
 }
 
-/* 3. 卡片式設計 (Cards System) */
-.glass-card {
+/* 質感卡片與陰影 */
+.card {
     background: #FFFFFF;
-    border-radius: 16px;
-    padding: 18px 24px;
+    border-radius: 20px;
+    padding: 20px;
     margin-bottom: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-    border: 1px solid #ECEFF1;
+    box-shadow: 0 8px 24px rgba(149, 157, 165, 0.08);
+    border: 1px solid #F1F5F9;
 }
 
-.kpi-title {
+/* 核心指標排版 */
+.calorie-board {
+    background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+    border-radius: 24px;
+    padding: 24px;
+    color: white;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.calorie-board .sub {
     font-size: 0.85rem;
-    font-weight: 600;
-    color: #78909C;
-    margin-bottom: 4px;
-    text-transform: uppercase;
+    color: #94A3B8;
     letter-spacing: 0.5px;
 }
+.calorie-board .number {
+    font-size: 2.8rem;
+    font-weight: 800;
+    margin: 6px 0;
+    line-height: 1;
+}
 
-.kpi-value {
-    font-size: 1.8rem;
+/* 營養素膠囊標籤 */
+.pill-container {
+    display: flex;
+    justify-content: space-around;
+    background: #F8FAFC;
+    border-radius: 14px;
+    padding: 10px;
+    margin-top: 12px;
+}
+.pill-item {
+    text-align: center;
+}
+.pill-label {
+    font-size: 0.75rem;
+    color: #64748B;
+    font-weight: 500;
+}
+.pill-val {
+    font-size: 0.95rem;
     font-weight: 700;
-    color: #263238;
+    color: #0F172A;
 }
 
-.kpi-unit {
-    font-size: 0.9rem;
-    font-weight: 400;
-    color: #90A4AE;
-    margin-left: 2px;
-}
-
-/* 4. 營養素徽章 (Badges) */
-.nutrient-pill {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-right: 6px;
-}
-.pill-protein { background: #E8F5E9; color: #2E7D32; }
-.pill-carbs { background: #FFF3E0; color: #E65100; }
-.pill-fat { background: #FFEBEE; color: #C62828; }
-
-/* 5. 相機與上傳器現代化微調 */
-div[data-testid="stCameraInput"] {
-    border-radius: 16px;
-    overflow: hidden;
-}
-button[kind="primary"] {
-    border-radius: 12px !important;
-    padding: 0.6rem 1.2rem !important;
+/* 按鈕美化 */
+.stButton > button {
+    border-radius: 14px !important;
     font-weight: 600 !important;
+    height: 48px !important;
+    transition: all 0.2s ease !important;
 }
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. 金鑰與雲端資料庫 (Supabase) 連線
+# 2. 金鑰驗證與 Supabase 連線
 # -------------------------------------------------------------
 gemini_key = st.secrets.get("GEMINI_API_KEY", "")
 supabase_url = st.secrets.get("SUPABASE_URL", "")
 supabase_key = st.secrets.get("SUPABASE_KEY", "")
 
-# 側邊欄容錯配置 (若 Secrets 未填寫)
-with st.sidebar:
-    st.markdown("### 🔐 服務設定")
-    if not gemini_key:
-        gemini_key = st.text_input("Gemini API Key", type="password")
-    if not supabase_url:
-        supabase_url = st.text_input("Supabase URL")
-    if not supabase_key:
-        supabase_key = st.text_input("Supabase Anon Key", type="password")
-
-if not gemini_key:
-    st.warning("請在側邊欄或 Secrets 設定 `GEMINI_API_KEY` 以啟動 AI 辨識。")
+if not (gemini_key and supabase_url and supabase_key):
+    st.error("請確認已在 Streamlit Secrets 正確設定 GEMINI_API_KEY、SUPABASE_URL 與 SUPABASE_KEY。")
     st.stop()
 
-# 初始化 Gemini Client
 ai_client = genai.Client(api_key=gemini_key)
-
-# 初始化 Supabase Client
-supabase: Client = None
-if supabase_url and supabase_key:
-    try:
-        supabase = create_client(supabase_url, supabase_key)
-    except Exception as e:
-        st.sidebar.error(f"雲端資料庫連線異常：{e}")
+supabase: Client = create_client(supabase_url, supabase_key)
 
 # -------------------------------------------------------------
-# 3. 結構化 Schema 與資料庫存取層
+# 3. 設備身分綁定 (Device ID)
 # -------------------------------------------------------------
-class FoodItem(BaseModel):
-    name: str = Field(description="食物名稱")
-    portion: str = Field(description="預估重量/份量 (如: 1碗, 150g)")
-    calories: float = Field(description="熱量 (kcal)")
-    protein: float = Field(description="蛋白質 (g)")
-    carbs: float = Field(description="碳水化合物 (g)")
-    fat: float = Field(description="脂肪 (g)")
+# 使用 query_params 模擬手機本地身分持久化
+if "device_id" not in st.query_params:
+    new_id = str(uuid.uuid4())[:8]
+    st.query_params["device_id"] = new_id
+    st.session_state["device_id"] = new_id
+else:
+    st.session_state["device_id"] = st.query_params["device_id"]
 
-class MealAnalysis(BaseModel):
-    meal_type: str = Field(description="判斷餐別 (早餐/午餐/晚餐/點心)")
-    items: List[FoodItem] = Field(description="盤中所有辨識出的食材或料理")
-    health_advice: str = Field(description="給減重者的實用簡明飲食建議")
-
-def fetch_today_meals():
-    """從雲端資料庫抓取當日餐點資料"""
-    if not supabase:
-        return []
-    try:
-        today_start = datetime.utcnow().strftime("%Y-%m-%d 00:00:00")
-        response = supabase.table("meals").select("*").gte("created_at", today_start).order("created_at", desc=True).execute()
-        return response.data
-    except Exception as ex:
-        st.sidebar.warning(f"雲端紀錄同步中斷: {ex}")
-        return []
-
-def save_meal_to_cloud(meal_type, calories, protein, carbs, fat, items, advice):
-    """將辨識出的餐點寫入 Supabase"""
-    if not supabase:
-        return False
-    try:
-        record = {
-            "meal_type": meal_type,
-            "calories": calories,
-            "protein": protein,
-            "carbs": carbs,
-            "fat": fat,
-            "items": items,
-            "advice": advice
-        }
-        supabase.table("meals").insert(record).execute()
-        return True
-    except Exception as ex:
-        st.error(f"寫入雲端失敗：{ex}")
-        return False
+device_id = st.session_state["device_id"]
 
 # -------------------------------------------------------------
-# 4. 個人代謝參數 (TDEE 與熱量赤字)
+# 4. 資料庫查詢與狀態管控
 # -------------------------------------------------------------
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("### 🏃 體態與代謝參數")
-    gender = st.selectbox("性別", ["男", "女"], index=0)
-    age = st.number_input("年齡", value=28, min_value=12, max_value=100)
-    height = st.number_input("身高 (cm)", value=172.0, min_value=100.0, max_value=240.0)
-    weight = st.number_input("體重 (kg)", value=70.0, min_value=30.0, max_value=200.0)
-    
-    activity_factors = {
-        "久坐 / 缺乏運動": 1.2,
-        "輕度活動 (每週 1-3 天)": 1.375,
-        "中度運動 (每週 3-5 天)": 1.55,
-        "高強度訓練 (每週 6-7 天)": 1.725
-    }
-    selected_act = st.selectbox("日常活動量", list(activity_factors.keys()), index=1)
-    
-    # BMR (Mifflin-St Jeor)
-    bmr = (10 * weight) + (6.25 * height) - (5 * age) + (5 if gender == "男" else -161)
-    tdee = bmr * activity_factors[selected_act]
-    
-    deficit = st.select_slider("減重目標赤字 (kcal/天)", options=[0, 300, 500, 750], value=500)
-    daily_budget = max(bmr, tdee - deficit)
+def get_user_profile(d_id):
+    res = supabase.table("user_profiles").select("*").eq("device_id", d_id).execute()
+    return res.data[0] if res.data else None
+
+def get_today_meals(d_id):
+    today = datetime.utcnow().strftime("%Y-%m-%d 00:00:00")
+    res = supabase.table("meals").select("*").eq("device_id", d_id).gte("created_at", today).order("created_at", desc=True).execute()
+    return res.data or []
+
+profile = get_user_profile(device_id)
 
 # -------------------------------------------------------------
-# 5. 主畫面：現代卡片儀表板 (Dashboard)
+# 5. 門禁關卡：初次使用者健康評估 (Onboarding Flow)
 # -------------------------------------------------------------
-# 讀取當天資料 (雲端優先，退回本機暫存)
-cloud_meals = fetch_today_meals()
-
-total_cal = sum(m["calories"] for m in cloud_meals)
-total_protein = sum(m["protein"] for m in cloud_meals)
-total_carbs = sum(m["carbs"] for m in cloud_meals)
-total_fat = sum(m["fat"] for m in cloud_meals)
-remaining_cal = daily_budget - total_cal
-
-# 標題區
-st.markdown("<h2 style='font-weight: 800; color: #1E293B; margin-bottom: 4px;'>🥑 NutriSnap AI</h2>", unsafe_allow_html=True)
-st.caption("拍下餐點，AI 即時解析營養份量，自動雲端同步與監控剩餘額度。")
-
-# 核心數據區塊
-k1, k2, k3 = st.columns(3)
-with k1:
-    st.markdown(f"""
-    <div class="glass-card">
-        <div class="kpi-title">每日預算目標</div>
-        <div class="kpi-value">{daily_budget:.0f}<span class="kpi-unit">kcal</span></div>
-        <div style="font-size: 0.78rem; color: #90A4AE; margin-top: 4px;">TDEE {tdee:.0f} - 赤字 {deficit}</div>
+if not profile:
+    st.markdown("""
+    <div style='text-align: center; padding: 20px 0;'>
+        <h2 style='font-weight: 800; color: #0F172A;'>👋 歡迎加入 NutriSnap</h2>
+        <p style='color: #64748B; font-size: 0.95rem;'>為了精準估算您的專屬每日熱量額度 (TDEE)，請花 30 秒完成基本健康評估。</p>
     </div>
     """, unsafe_allow_html=True)
+    
+    with st.form("onboarding_form"):
+        gender = st.radio("生理性別", ["女性", "男性"], horizontal=True)
+        col_age, col_h = st.columns(2)
+        with col_age:
+            age = st.number_input("年齡 (歲)", min_value=12, max_value=99, value=26)
+        with col_h:
+            height = st.number_input("身高 (cm)", min_value=120.0, max_value=230.0, value=165.0, step=0.5)
+        
+        weight = st.number_input("體重 (kg)", min_value=35.0, max_value=200.0, value=60.0, step=0.5)
+        
+        activity = st.selectbox(
+            "日常活動強度",
+            [
+                "久坐少動 (一般辦公室工作，幾乎不運動)",
+                "輕度活動 (每週輕度運動 1-3 天)",
+                "中度活動 (每週規律中度運動 3-5 天)",
+                "高度運動 (每週高強度運動 6-7 天)"
+            ]
+        )
+        
+        goal = st.selectbox(
+            "減重計畫目標",
+            [
+                "溫和健康減重 (每日熱量赤字 300 kcal)",
+                "標準標準減重 (每日熱量赤字 500 kcal)",
+                "維持目前體重 (無赤字)"
+            ],
+            index=1
+        )
+        
+        submit = st.form_submit_button("✅ 計算 TDEE 並進入系統", type="primary", use_container_width=True)
+        
+        if submit:
+            # 換算活動係數
+            act_map = {
+                "久坐少動 (一般辦公室工作，幾乎不運動)": 1.2,
+                "輕度活動 (每週輕度運動 1-3 天)": 1.375,
+                "中度活動 (每週規律中度運動 3-5 天)": 1.55,
+                "高度運動 (每週高強度運動 6-7 天)": 1.725
+            }
+            factor = act_map[activity]
+            
+            # Mifflin-St Jeor 公式
+            if gender == "男性":
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5
+            else:
+                bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161
+                
+            tdee = bmr * factor
+            deficit = 300 if "300" in goal else (500 if "500" in goal else 0)
+            daily_budget = max(bmr, tdee - deficit) # 確保不低於 BMR 保障健康
+            
+            # 寫入雲端資料庫
+            supabase.table("user_profiles").insert({
+                "device_id": device_id,
+                "gender": gender,
+                "age": age,
+                "height": height,
+                "weight": weight,
+                "activity_factor": factor,
+                "bmr": bmr,
+                "tdee": tdee,
+                "daily_budget": daily_budget
+            }).execute()
+            
+            st.success("評估完成！已為您的手機建立專屬熱量預算。")
+            st.rerun()
+            
+    st.stop()
 
-with k2:
-    st.markdown(f"""
-    <div class="glass-card">
-        <div class="kpi-title">今日累計攝取</div>
-        <div class="kpi-value">{total_cal:.0f}<span class="kpi-unit">kcal</span></div>
-        <div style="font-size: 0.78rem; color: #90A4AE; margin-top: 4px;">已記錄 {len(cloud_meals)} 餐</div>
-    </div>
-    """, unsafe_allow_html=True)
+# -------------------------------------------------------------
+# 6. 正式首頁：每日剩餘熱量儀表板
+# -------------------------------------------------------------
+today_meals = get_today_meals(device_id)
 
-with k3:
-    rem_color = "#2E7D32" if remaining_cal >= 0 else "#C62828"
-    status_text = "額度充足" if remaining_cal >= 0 else "熱量超標"
-    st.markdown(f"""
-    <div class="glass-card" style="border-left: 4px solid {rem_color};">
-        <div class="kpi-title">剩餘可用額度</div>
-        <div class="kpi-value" style="color: {rem_color};">{remaining_cal:.0f}<span class="kpi-unit">kcal</span></div>
-        <div style="font-size: 0.78rem; color: {rem_color}; margin-top: 4px;">{status_text}</div>
-    </div>
-    """, unsafe_allow_html=True)
+consumed_cal = sum(m["calories"] for m in today_meals)
+consumed_pro = sum(m["protein"] for m in today_meals)
+consumed_carbs = sum(m["carbs"] for m in today_meals)
+consumed_fat = sum(m["fat"] for m in today_meals)
 
-# 巨量營養素膠囊標籤
+budget = profile["daily_budget"]
+remaining = budget - consumed_cal
+remaining_color = "#10B981" if remaining >= 0 else "#EF4444"
+
 st.markdown(f"""
-<div style="margin-bottom: 20px; display: flex; align-items: center;">
-    <span style="font-size: 0.85rem; color: #607D8B; margin-right: 12px; font-weight: 600;">營養比例：</span>
-    <span class="nutrient-pill pill-protein">蛋白質 {total_protein:.1f}g</span>
-    <span class="nutrient-pill pill-carbs">碳水化合物 {total_carbs:.1f}g</span>
-    <span class="nutrient-pill pill-fat">脂肪 {total_fat:.1f}g</span>
+<div class="calorie-board">
+    <div class="sub">今日剩餘熱量預算</div>
+    <div class="number" style="color: {remaining_color};">{remaining:,.0f} <span style="font-size: 1.2rem; font-weight: 500;">kcal</span></div>
+    <div style="font-size: 0.85rem; color: #CBD5E1; margin-top: 4px;">
+        目標 {budget:.0f} - 已攝取 {consumed_cal:.0f}
+    </div>
+    <div class="pill-container" style="background: rgba(255,255,255,0.08); margin-top: 16px;">
+        <div class="pill-item">
+            <div class="pill-label" style="color: #94A3B8;">蛋白質</div>
+            <div class="pill-val" style="color: #FFFFFF;">{consumed_pro:.1f}g</div>
+        </div>
+        <div class="pill-item">
+            <div class="pill-label" style="color: #94A3B8;">碳水化合物</div>
+            <div class="pill-val" style="color: #FFFFFF;">{consumed_carbs:.1f}g</div>
+        </div>
+        <div class="pill-item">
+            <div class="pill-label" style="color: #94A3B8;">脂肪</div>
+            <div class="pill-val" style="color: #FFFFFF;">{consumed_fat:.1f}g</div>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 6. 拍照與上傳區塊 (Cards Layout)
+# 7. 拍照記錄與「分食/份量調整」核心模組
 # -------------------------------------------------------------
-st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-st.markdown("<h4 style='margin-top:0; font-weight: 700; color: #37474F;'>📸 拍照分析新餐點</h4>", unsafe_allow_html=True)
+st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown("<h4 style='margin:0 0 12px 0; font-weight:700; color:#1E293B;'>📸 用餐當上記錄</h4>", unsafe_allow_html=True)
 
-input_col1, input_col2 = st.columns([1, 1])
-with input_col1:
-    photo = st.camera_input("開啟相機鏡頭", label_visibility="collapsed")
-with input_col2:
-    uploaded = st.file_uploader("或選擇既有照片", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+# 雙重相機調用相容性設計：手機端直接打開檔案選擇器，系統會主動詢問「拍照」或「從相簿挑選」
+image_file = st.file_uploader("點擊立即拍照或挑選照片", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
-img_source = photo or uploaded
+class FoodItem(BaseModel):
+    name: str = Field(description="食物名稱")
+    portion: str = Field(description="整盤食物的估計總重量或份量 (如: 250g, 1碗)")
+    calories: float = Field(description="整盤熱量 (kcal)")
+    protein: float = Field(description="整盤蛋白質 (g)")
+    carbs: float = Field(description="整盤碳水化合物 (g)")
+    fat: float = Field(description="整盤脂肪 (g)")
 
-if img_source:
-    image = Image.open(img_source)
-    st.image(image, use_container_width=True)
+class MealAnalysis(BaseModel):
+    meal_type: str = Field(description="判斷餐別 (早餐/午餐/晚餐/點心)")
+    items: List[FoodItem] = Field(description="照片中的所有餐點食材細項")
+    advice: str = Field(description="給減重者的實用簡明建議")
+
+if image_file:
+    img = Image.open(image_file)
+    st.image(img, use_container_width=True)
     
-    if st.button("✨ 辨識熱量並儲存至雲端", type="primary", use_container_width=True):
-        with st.spinner("AI 正在精算各食材份量與熱量..."):
+    # 執行 AI 辨識
+    if "current_analysis" not in st.session_state or st.session_state.get("last_uploaded_name") != image_file.name:
+        with st.spinner("AI 正在深度解析餐點營養素..."):
             try:
-                # 呼叫 Gemini 進行多模態辨識與 JSON Schema 轉換
-                prompt = (
-                    "身為專業臨床營養師，請詳細辨識照片中每一項食材與配菜，推估重量與份量，"
-                    "計算卡路里與蛋白質、碳水化合物、脂肪克數，並給予針對該餐的減重指導。"
-                )
                 response = ai_client.models.generate_content(
                     model="gemini-2.5-flash",
-                    contents=[image, prompt],
+                    contents=[
+                        img,
+                        "你是一位精準的專業營養師。請詳細辨識照片中的所有食物，"
+                        "估算『整盤/整份』的重量、熱量(kcal)與三大營養素，並給出減重建議。"
+                    ],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=MealAnalysis,
-                        temperature=0.2,
-                    ),
-                )
-                result: MealAnalysis = response.parsed
-
-                # 計算該餐總計
-                meal_cal = sum(i.calories for i in result.items)
-                meal_pro = sum(i.protein for i in result.items)
-                meal_carbs = sum(i.carbs for i in result.items)
-                meal_fat = sum(i.fat for i in result.items)
-                items_dict = [i.model_dump() for i in result.items]
-
-                # 寫入 Supabase 資料庫
-                if supabase:
-                    save_meal_to_cloud(
-                        meal_type=result.meal_type,
-                        calories=meal_cal,
-                        protein=meal_pro,
-                        carbs=meal_carbs,
-                        fat=meal_fat,
-                        items=items_dict,
-                        advice=result.health_advice
+                        temperature=0.2
                     )
-                    st.success("🎉 已成功儲存至雲端資料庫！")
-                else:
-                    st.warning("⚠️ 本地辨識完成，但未偵測到 Supabase 連線，未同步至雲端。")
-
-                st.rerun()
-
+                )
+                st.session_state["current_analysis"] = response.parsed
+                st.session_state["last_uploaded_name"] = image_file.name
             except Exception as e:
-                st.error(f"辨識失敗：{e}")
+                st.error(f"辨識發生問題：{e}")
+
+    # 若有辨識結果，提供分食比例選擇
+    if "current_analysis" in st.session_state:
+        res: MealAnalysis = st.session_state["current_analysis"]
+        
+        st.markdown("---")
+        st.markdown("##### 🍽️ 您實際吃了多少份量？(多人共食請自選)")
+        
+        portion_map = {
+            "嚐鮮分食 (約 1/4 份)": 0.25,
+            "朋友分食 (約 1/3 份)": 0.33,
+            "兩人對半 (約 1/2 份)": 0.5,
+            "獨自完食 (完整 1 份)": 1.0,
+            "吃大份/續盤 (1.5 份)": 1.5,
+            "雙倍份量 (2 份)": 2.0
+        }
+        selected_portion_label = st.radio("選擇實際攝取比例：", list(portion_map.keys()), index=3)
+        multiplier = portion_map[selected_portion_label]
+
+        # 計算按比例縮放後的營養數值
+        base_cal = sum(i.calories for i in res.items)
+        base_pro = sum(i.protein for i in res.items)
+        base_carbs = sum(i.carbs for i in res.items)
+        base_fat = sum(i.fat for i in res.items)
+
+        actual_cal = base_cal * multiplier
+        actual_pro = base_pro * multiplier
+        actual_carbs = base_carbs * multiplier
+        actual_fat = base_fat * multiplier
+
+        # 呈現換算後的即時卡片
+        st.info(f"👉 換算實際攝取：**{actual_cal:.0f} kcal** (蛋白質 {actual_pro:.1f}g | 碳水 {actual_carbs:.1f}g | 脂肪 {actual_fat:.1f}g)")
+        
+        if st.button("💾 確認記錄這餐", type="primary", use_container_width=True):
+            items_payload = [{
+                "name": i.name,
+                "portion": i.portion,
+                "actual_cal": round(i.calories * multiplier, 1)
+            } for i in res.items]
+            
+            supabase.table("meals").insert({
+                "device_id": device_id,
+                "meal_type": res.meal_type,
+                "portion_multiplier": multiplier,
+                "calories": actual_cal,
+                "protein": actual_pro,
+                "carbs": actual_carbs,
+                "fat": actual_fat,
+                "items": items_payload,
+                "advice": res.advice
+            }).execute()
+            
+            # 清理快取
+            del st.session_state["current_analysis"]
+            del st.session_state["last_uploaded_name"]
+            st.success("記錄成功入庫！")
+            st.rerun()
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 7. 今日歷程卡片 (History Feed)
+# 8. 今日記錄動態饋給 (Meal Timeline)
 # -------------------------------------------------------------
-st.markdown("<h4 style='font-weight: 700; color: #37474F; margin-top: 24px;'>🗓️ 今日飲食歷程</h4>", unsafe_allow_html=True)
+st.markdown("<h5 style='font-weight: 700; color: #1E293B; margin-top: 24px;'>📋 今日已記餐點</h5>", unsafe_allow_html=True)
 
-if not cloud_meals:
-    st.info("今日尚無飲食紀錄，拍下第一餐開始計算！")
+if not today_meals:
+    st.caption("今天還沒有任何用餐記錄，拍下第一餐開始計算！")
 else:
-    for meal in cloud_meals:
-        with st.container():
-            st.markdown(f"""
-            <div class="glass-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 1.1rem; font-weight: 700; color: #263238;">🍽️ {meal.get('meal_type', '餐點')}</span>
-                    <span style="font-size: 1.2rem; font-weight: 800; color: #1E88E5;">{meal.get('calories', 0):.0f} kcal</span>
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <span class="nutrient-pill pill-protein">蛋 {meal.get('protein', 0):.1f}g</span>
-                    <span class="nutrient-pill pill-carbs">碳 {meal.get('carbs', 0):.1f}g</span>
-                    <span class="nutrient-pill pill-fat">脂 {meal.get('fat', 0):.1f}g</span>
-                </div>
-                <div style="background: #F8FAFC; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; color: #455A64; margin-bottom: 8px;">
-                    💡 <b>營養師評析：</b>{meal.get('advice', '無')}
-                </div>
+    for m in today_meals:
+        st.markdown(f"""
+        <div class="card" style="padding: 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:1.05rem; color:#0F172A;">🥣 {m['meal_type']}</span>
+                <span style="font-weight:800; font-size:1.1rem; color:#2563EB;">{m['calories']:.0f} kcal</span>
             </div>
-            """, unsafe_allow_html=True)
-            
-            # 展開食材明細
-            with st.expander("查看這餐的食材組成細項"):
-                items = meal.get("items", [])
-                if items:
-                    df = pd.DataFrame(items)
-                    df.columns = ["食物名稱", "預估份量", "熱量(kcal)", "蛋白質(g)", "碳水(g)", "脂肪(g)"]
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+            <div style="font-size:0.8rem; color:#64748B; margin: 4px 0;">份量倍率：{m.get('portion_multiplier', 1.0)}x</div>
+            <div style="font-size:0.85rem; color:#475569; background:#F8FAFC; padding:8px 12px; border-radius:10px; margin-top:8px;">
+                💡 <b>建議：</b>{m.get('advice', '維持均衡飲食。')}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
