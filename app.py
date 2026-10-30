@@ -10,16 +10,16 @@ from google.genai import types
 from supabase import create_client, Client
 
 # -------------------------------------------------------------
-# 1. 頁面配置與極致頂級質感 CSS (Apple Health / Modern Minimalist)
+# 1. 頁面配置與現代純白清新質感 CSS (無縮排，徹底解決破版)
 # -------------------------------------------------------------
 st.set_page_config(
-    page_title="NutriSnap Luxe",
-    page_icon="✨",
+    page_title="NutriSnap AI",
+    page_icon="🥗",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-LUXE_CSS = """
+CLEAN_LIGHT_CSS = """
 <style>
 /* 徹底抹除 Streamlit 原生頂部 Header、Toolbar、Share、選單與頁尾 */
 header[data-testid="stHeader"], #MainMenu, footer, .stAppDeployButton {
@@ -27,143 +27,136 @@ header[data-testid="stHeader"], #MainMenu, footer, .stAppDeployButton {
     visibility: hidden !important;
 }
 
-/* 背景與主容器全螢幕手機比例 */
+/* 清新明亮底色與行動端版型寬度 */
 .stApp {
-    background-color: #0A0D14 !important;
-    color: #F1F5F9 !important;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif !important;
+    background-color: #F8FAFC !important;
+    color: #1E293B !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 }
 
 .main .block-container {
     padding-top: 1.2rem !important;
-    padding-bottom: 4rem !important;
-    max-width: 480px !important;
+    padding-bottom: 3.5rem !important;
+    max-width: 500px !important;
     margin: 0 auto !important;
 }
 
-/* 奢華金屬黑晶卡片 */
-.luxe-card {
-    background: linear-gradient(180deg, rgba(26, 32, 46, 0.8) 0%, rgba(17, 24, 39, 0.95) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 24px;
+/* 頂級純白陰影卡片 */
+.white-card {
+    background: #FFFFFF;
+    border-radius: 20px;
     padding: 22px;
-    margin-bottom: 18px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(16px);
+    margin-bottom: 16px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
 }
 
-/* 核心熱量能量環看板 */
-.hero-board {
-    background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.15) 0%, rgba(10, 13, 20, 0) 70%),
-                linear-gradient(180deg, #131A26 0%, #0E131F 100%);
-    border: 1px solid rgba(16, 185, 129, 0.25);
-    border-radius: 28px;
-    padding: 28px 20px;
+/* 核心熱量儀表板看板 */
+.dashboard-hero {
+    background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+    border-radius: 24px;
+    padding: 26px 20px;
+    color: #FFFFFF;
     text-align: center;
-    margin-bottom: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    margin-bottom: 18px;
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.25);
 }
 
-.hero-subtitle {
+.dashboard-hero-over {
+    background: linear-gradient(135deg, #E11D48 0%, #F43F5E 100%) !important;
+    box-shadow: 0 10px 25px rgba(244, 63, 94, 0.25) !important;
+}
+
+.hero-tag {
     font-size: 0.8rem;
     font-weight: 600;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
-    color: #94A3B8;
+    opacity: 0.9;
 }
 
-.hero-number {
-    font-size: 3.4rem;
+.hero-main-val {
+    font-size: 3.2rem;
     font-weight: 800;
     line-height: 1.1;
-    margin: 8px 0;
-    letter-spacing: -1px;
+    margin: 6px 0;
 }
 
-/* 營養膠囊儀表 */
-.macro-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 18px;
-}
-
-.macro-box {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+/* 營養素方塊排版 */
+.macro-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 16px;
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(8px);
     border-radius: 16px;
-    padding: 10px 6px;
+    padding: 12px 10px;
+}
+
+.macro-cell {
+    flex: 1;
     text-align: center;
 }
 
-.macro-name {
+.macro-title {
     font-size: 0.72rem;
     font-weight: 500;
-    color: #94A3B8;
-    margin-bottom: 3px;
+    color: rgba(255, 255, 255, 0.9);
 }
 
-.macro-val {
+.macro-number {
     font-size: 1.05rem;
     font-weight: 700;
     color: #FFFFFF;
 }
 
-/* 按鈕極致質感 */
+/* 按鈕美化 */
 .stButton > button {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    background: #059669 !important;
     color: #FFFFFF !important;
     border: none !important;
-    border-radius: 16px !important;
+    border-radius: 14px !important;
     font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    padding: 0.75rem 1.2rem !important;
-    height: 50px !important;
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3) !important;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-weight: 600 !important;
+    height: 48px !important;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25) !important;
+    transition: all 0.2s ease !important;
 }
 
 .stButton > button:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.45) !important;
+    background: #047857 !important;
 }
 
-/* 輸入框美化 */
+/* 簡約輸入框 */
 .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
-    background-color: #161D2B !important;
-    color: #F8FAFC !important;
-    border-radius: 14px !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 自訂進度條顏色 */
-.stProgress > div > div > div > div {
-    background: linear-gradient(90deg, #10B981 0%, #34D399 100%) !important;
-    border-radius: 8px;
+    background-color: #FFFFFF !important;
+    border-radius: 12px !important;
+    border: 1px solid #CBD5E1 !important;
 }
 </style>
 """
-st.markdown(LUXE_CSS, unsafe_allow_html=True)
+st.markdown(CLEAN_LIGHT_CSS, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. 金鑰驗證與防禦型連線
+# 2. 金鑰驗證與資料庫連線
 # -------------------------------------------------------------
 gemini_key = st.secrets.get("GEMINI_API_KEY", "")
 supabase_url = st.secrets.get("SUPABASE_URL", "")
 supabase_key = st.secrets.get("SUPABASE_KEY", "")
 
 if not (gemini_key and supabase_url and supabase_key):
-    st.error("金鑰未設定完整，請於 Streamlit Secrets 填入 GEMINI_API_KEY、SUPABASE_URL、SUPABASE_KEY。")
+    st.error("請確認 Streamlit Secrets 已填入 GEMINI_API_KEY、SUPABASE_URL 與 SUPABASE_KEY。")
     st.stop()
 
 ai_client = genai.Client(api_key=gemini_key)
 supabase: Client = create_client(supabase_url, supabase_key)
 
 # -------------------------------------------------------------
-# 3. 設備識別碼綁定 (Device Token)
+# 3. 手機設備識別碼 (Device ID) 綁定
 # -------------------------------------------------------------
 if "device_id" not in st.query_params:
-    assigned_id = f"dev_{str(uuid.uuid4())[:10]}"
+    assigned_id = f"dev_{str(uuid.uuid4())[:8]}"
     st.query_params["device_id"] = assigned_id
     st.session_state["device_id"] = assigned_id
 else:
@@ -172,16 +165,16 @@ else:
 device_id = st.session_state["device_id"]
 
 # -------------------------------------------------------------
-# 4. 安全資料庫存取層 (附帶 Exception 防崩潰)
+# 4. 資料庫查詢（含防崩潰容錯）
 # -------------------------------------------------------------
-def safe_get_profile(d_id):
+def get_user_profile(d_id):
     try:
         res = supabase.table("user_profiles").select("*").eq("device_id", d_id).execute()
         return res.data[0] if res.data else None
     except Exception:
         return None
 
-def safe_get_today_meals(d_id):
+def get_today_meals(d_id):
     try:
         today_start = datetime.utcnow().strftime("%Y-%m-%d 00:00:00")
         res = supabase.table("meals").select("*").eq("device_id", d_id).gte("created_at", today_start).order("created_at", desc=True).execute()
@@ -189,62 +182,62 @@ def safe_get_today_meals(d_id):
     except Exception:
         return []
 
-profile = safe_get_profile(device_id)
+profile = get_user_profile(device_id)
 
 # -------------------------------------------------------------
-# 5. 精品級健康迎賓門禁 (Onboarding Gatekeeper)
+# 5. 門禁關卡：初次健康問卷（尚未建立 TDEE 無法進入首頁）
 # -------------------------------------------------------------
 if not profile:
     st.markdown("""
-    <div style='text-align: center; padding: 24px 0 10px 0;'>
-        <div style='font-size: 2.2rem; margin-bottom: 6px;'>🥑</div>
-        <h2 style='font-weight: 800; letter-spacing: -0.5px; color: #FFFFFF; margin: 0;'>NutriSnap Luxe</h2>
-        <p style='color: #94A3B8; font-size: 0.88rem; margin-top: 8px;'>設定您的身體密碼，開啟 AI 智慧熱量管家</p>
-    </div>
-    """, unsafe_allow_html=True)
+<div style="text-align: center; padding: 20px 0 10px 0;">
+<div style="font-size: 2.2rem; margin-bottom: 4px;">🥗</div>
+<h2 style="font-weight: 800; color: #0F172A; margin: 0;">NutriSnap AI</h2>
+<p style="color: #64748B; font-size: 0.9rem; margin-top: 6px;">請完成基本體態設定，系統將為您推算每日專屬熱量預算</p>
+</div>
+""", unsafe_allow_html=True)
 
-    with st.form("luxe_onboarding"):
-        st.markdown("<div class='luxe-card'>", unsafe_allow_html=True)
+    with st.form("onboarding_form"):
+        st.markdown("<div class='white-card'>", unsafe_allow_html=True)
         gender = st.radio("生理性別", ["女性", "男性"], horizontal=True)
         
         c1, c2 = st.columns(2)
         with c1:
-            age = st.number_input("年齡", min_value=12, max_value=100, value=27)
+            age = st.number_input("年齡", min_value=12, max_value=99, value=26)
         with c2:
-            height = st.number_input("身高 (cm)", min_value=120.0, max_value=230.0, value=166.0, step=0.5)
-        
-        weight = st.number_input("體重 (kg)", min_value=30.0, max_value=200.0, value=58.5, step=0.5)
+            height = st.number_input("身高 (cm)", min_value=120.0, max_value=230.0, value=165.0, step=0.5)
+            
+        weight = st.number_input("體重 (kg)", min_value=30.0, max_value=200.0, value=58.0, step=0.5)
         
         act = st.selectbox(
             "日常活動強度",
             [
-                "久坐少動 (辦公室/低步數，係數 1.2)",
-                "輕度活動 (每週運動 1-3 天，係數 1.375)",
-                "中度活動 (每週運動 3-5 天，係數 1.55)",
-                "高度運動 (每週高強度運動，係數 1.725)"
+                "久坐少動 (一般上班族/辦公室)",
+                "輕度活動 (每週輕度運動 1-3 天)",
+                "中度活動 (每週中度運動 3-5 天)",
+                "高度運動 (每週高強度運動 6-7 天)"
             ]
         )
         
         deficit_choice = st.select_slider(
-            "每日熱量赤字目標",
+            "減重熱量赤字目標",
             options=[0, 300, 500, 750],
             value=400,
-            format_func=lambda x: f"{x} kcal (維持)" if x == 0 else f"-{x} kcal/天"
+            format_func=lambda x: f"{x} kcal (維持體重)" if x == 0 else f"-{x} kcal/天 (減重)"
         )
         
-        btn = st.form_submit_button("啟動專屬代謝檔案", use_container_width=True)
+        btn = st.form_submit_button("計算 TDEE 並進入首頁", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
         if btn:
             act_map = {
-                "久坐少動 (辦公室/低步數，係數 1.2)": 1.2,
-                "輕度活動 (每週運動 1-3 天，係數 1.375)": 1.375,
-                "中度活動 (每週運動 3-5 天，係數 1.55)": 1.55,
-                "高度運動 (每週高強度運動，係數 1.725)": 1.725
+                "久坐少動 (一般上班族/辦公室)": 1.2,
+                "輕度活動 (每週輕度運動 1-3 天)": 1.375,
+                "中度活動 (每週中度運動 3-5 天)": 1.55,
+                "高度運動 (每週高強度運動 6-7 天)": 1.725
             }
             factor = act_map[act]
             
-            # 精算 BMR (Mifflin-St Jeor)
+            # Mifflin-St Jeor 公式
             if gender == "男性":
                 bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5
             else:
@@ -267,14 +260,14 @@ if not profile:
                 }).execute()
                 st.rerun()
             except Exception as e:
-                st.error(f"建立設定檔失敗，請確認已執行修復 SQL：{e}")
+                st.error(f"儲存失敗，請確認 Supabase 資料表已建立：{e}")
 
     st.stop()
 
 # -------------------------------------------------------------
-# 6. 正式首頁：Apple Health 旗艦風格儀表板
+# 6. 正式首頁：清新純白/翡翠綠儀表板
 # -------------------------------------------------------------
-today_meals = safe_get_today_meals(device_id)
+today_meals = get_today_meals(device_id)
 
 consumed_cal = sum(m.get("calories", 0) for m in today_meals)
 consumed_pro = sum(m.get("protein", 0) for m in today_meals)
@@ -283,47 +276,45 @@ consumed_fat = sum(m.get("fat", 0) for m in today_meals)
 
 budget = profile["daily_budget"]
 remaining = budget - consumed_cal
+is_over = remaining < 0
 
-rem_color = "#10B981" if remaining >= 0 else "#F43F5E"
-rem_status = "額度充裕" if remaining >= 0 else "已超過預算"
+hero_class = "dashboard-hero dashboard-hero-over" if is_over else "dashboard-hero"
+hero_status_text = "今日剩餘可用熱量" if not is_over else "已超出今日預算"
 
+# 嚴格保持左對齊、無縮排，徹底阻絕 Markdown 代碼塊解析錯誤
 st.markdown(f"""
-<div class="hero-board">
-    <div class="hero-subtitle">REMAINING CALORIES</div>
-    <div class="hero-number" style="color: {rem_color};">
-        {remaining:,.0f}
-        <span style="font-size: 1.2rem; font-weight: 500; color: #94A3B8;">kcal</span>
-    </div>
-    <div style="font-size: 0.85rem; color: #94A3B8;">
-        今日預算 {budget:,.0f} &nbsp;·&nbsp; 已攝取 <span style="color: #FFFFFF; font-weight:600;">{consumed_cal:,.0f}</span>
-    </div>
-    
-    <div class="macro-grid">
-        <div class="macro-box">
-            <div class="macro-name">蛋白質</div>
-            <div class="macro-val" style="color: #34D399;">{consumed_pro:.1f}g</div>
-        </div>
-        <div class="macro-box">
-            <div class="macro-name">碳水</div>
-            <div class="macro-val" style="color: #FBBF24;">{consumed_carbs:.1f}g</div>
-        </div>
-        <div class="macro-box">
-            <div class="macro-name">脂肪</div>
-            <div class="macro-val" style="color: #F87171;">{consumed_fat:.1f}g</div>
-        </div>
-    </div>
+<div class="{hero_class}">
+<div class="hero-tag">{hero_status_text}</div>
+<div class="hero-main-val">{abs(remaining):,.0f} <span style="font-size: 1.1rem; font-weight: 500;">kcal</span></div>
+<div style="font-size: 0.85rem; opacity: 0.95;">
+每日目標 {budget:,.0f} · 今日已攝取 {consumed_cal:,.0f}
+</div>
+<div class="macro-container">
+<div class="macro-cell">
+<div class="macro-title">蛋白質</div>
+<div class="macro-number">{consumed_pro:.1f}g</div>
+</div>
+<div class="macro-cell">
+<div class="macro-title">碳水化合物</div>
+<div class="macro-number">{consumed_carbs:.1f}g</div>
+</div>
+<div class="macro-cell">
+<div class="macro-title">脂肪</div>
+<div class="macro-number">{consumed_fat:.1f}g</div>
+</div>
+</div>
 </div>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 7. 用餐拍照記錄與即時共食分量比例切換
+# 7. 拍照記錄與多人共食/份量自選區塊
 # -------------------------------------------------------------
-st.markdown("<div class='luxe-card'>", unsafe_allow_html=True)
-st.markdown("<div style='font-size: 1.05rem; font-weight: 700; color: #FFFFFF; margin-bottom: 12px;'>📸 捕捉這餐美食</div>", unsafe_allow_html=True)
+st.markdown("<div class='white-card'>", unsafe_allow_html=True)
+st.markdown("<h4 style='margin:0 0 12px 0; font-weight:700; color:#0F172A;'>📸 拍照記錄這餐</h4>", unsafe_allow_html=True)
 
-# 手機相機友善上傳元件
-photo_upload = st.file_uploader(
-    "拍照或上傳餐點",
+# 透過檔案選擇器自動喚醒手機相機或相簿
+uploaded_photo = st.file_uploader(
+    "點擊拍照或從相簿選擇",
     type=["jpg", "jpeg", "png"],
     label_visibility="collapsed"
 )
@@ -331,29 +322,28 @@ photo_upload = st.file_uploader(
 class FoodItem(BaseModel):
     name: str = Field(description="食物名稱")
     portion: str = Field(description="整盤食物的估算重量或份量 (例: 200g, 1碗)")
-    calories: float = Field(description="整盤熱量 (kcal)")
-    protein: float = Field(description="整盤蛋白質 (g)")
-    carbs: float = Field(description="整盤碳水 (g)")
-    fat: float = Field(description="整盤脂肪 (g)")
+    calories: float = Field(description="整盤總熱量 (kcal)")
+    protein: float = Field(description="整盤總蛋白質 (g)")
+    carbs: float = Field(description="整盤總碳水 (g)")
+    fat: float = Field(description="整盤總脂肪 (g)")
 
 class MealAnalysis(BaseModel):
     meal_type: str = Field(description="判斷餐別 (早餐/午餐/晚餐/點心)")
-    items: List[FoodItem] = Field(description="辨識出的所有食材")
-    advice: str = Field(description="精簡、專業的減重營養指導")
+    items: List[FoodItem] = Field(description="辨識出的所有食材細項")
+    advice: str = Field(description="簡明實用的減重營養指導")
 
-if photo_upload:
-    image = Image.open(photo_upload)
+if uploaded_photo:
+    image = Image.open(uploaded_photo)
     st.image(image, use_container_width=True)
     
-    # AI 辨識分析
-    if "analysis_cache" not in st.session_state or st.session_state.get("cached_file") != photo_upload.name:
-        with st.spinner("✨ 頂級 AI 正在精算盤中所有食材營養..."):
+    if "analysis_cache" not in st.session_state or st.session_state.get("cached_file") != uploaded_photo.name:
+        with st.spinner("AI 正在解析餐點營養成份..."):
             try:
                 response = ai_client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=[
                         image,
-                        "你是一位精通食材成分與熱量計算的專業營養師。請嚴謹辨識照片中整盤所有料理，"
+                        "你是一位專業營養師。請詳細辨識照片中整盤所有的料理與食材，"
                         "估算各項目重量、整盤熱量(kcal)與三大營養素，並給予減重方針。"
                     ],
                     config=types.GenerateContentConfig(
@@ -363,27 +353,28 @@ if photo_upload:
                     )
                 )
                 st.session_state["analysis_cache"] = response.parsed
-                st.session_state["cached_file"] = photo_upload.name
+                st.session_state["cached_file"] = uploaded_photo.name
             except Exception as e:
-                st.error(f"辨識遇到問題：{e}")
+                st.error(f"辨識失敗：{e}")
 
     if "analysis_cache" in st.session_state:
         res: MealAnalysis = st.session_state["analysis_cache"]
         
-        st.markdown("<div style='height: 1px; background: rgba(255,255,255,0.08); margin: 16px 0;'></div>", unsafe_allow_html=True)
-        st.markdown("<div style='font-size: 0.9rem; font-weight: 600; color: #94A3B8; margin-bottom: 8px;'>👥 您實際吃了多少？(分食/共食自選)</div>", unsafe_allow_html=True)
+        st.markdown("<hr style='border:0; border-top:1px solid #E2E8F0; margin:16px 0;'>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.9rem; font-weight:700; color:#334155; margin-bottom:8px;'>🍽️ 實際食用比例 (共食/分食調整)：</div>", unsafe_allow_html=True)
         
-        portion_options = {
+        portion_map = {
             "嚐鮮分食 (約 1/4 份)": 0.25,
             "好友共食 (約 1/3 份)": 0.33,
             "兩人分半 (約 1/2 份)": 0.5,
-            "一人獨享 (完整 1 份)": 1.0,
+            "獨自完食 (完整 1 份)": 1.0,
             "大份增量 (1.5 份)": 1.5,
             "雙倍份量 (2.0 份)": 2.0
         }
-        portion_label = st.select_slider("攝取比例", options=list(portion_options.keys()), value="一人獨享 (完整 1 份)")
-        multiplier = portion_options[portion_label]
+        portion_label = st.radio("選擇比例", list(portion_map.keys()), index=3, label_visibility="collapsed")
+        multiplier = portion_map[portion_label]
 
+        # 比例折算
         base_cal = sum(i.calories for i in res.items)
         base_pro = sum(i.protein for i in res.items)
         base_carbs = sum(i.carbs for i in res.items)
@@ -395,16 +386,16 @@ if photo_upload:
         actual_fat = base_fat * multiplier
 
         st.markdown(f"""
-        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 14px; margin: 12px 0;">
-            <div style="font-size: 0.8rem; color: #34D399; font-weight: 600;">換算您的實際攝取</div>
-            <div style="font-size: 1.6rem; font-weight: 800; color: #FFFFFF; margin: 4px 0;">
-                {actual_cal:.0f} <span style="font-size: 0.9rem; font-weight: 400; color: #94A3B8;">kcal</span>
-            </div>
-            <div style="font-size: 0.8rem; color: #CBD5E1;">
-                蛋白質 {actual_pro:.1f}g · 碳水 {actual_carbs:.1f}g · 脂肪 {actual_fat:.1f}g
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+<div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 12px; margin: 12px 0;">
+<div style="font-size: 0.78rem; color: #166534; font-weight: 600;">換算後實際攝取</div>
+<div style="font-size: 1.5rem; font-weight: 800; color: #15803D; margin: 2px 0;">
+{actual_cal:.0f} <span style="font-size: 0.85rem; font-weight: 500; color: #64748B;">kcal</span>
+</div>
+<div style="font-size: 0.8rem; color: #334155;">
+蛋白質 {actual_pro:.1f}g · 碳水 {actual_carbs:.1f}g · 脂肪 {actual_fat:.1f}g
+</div>
+</div>
+""", unsafe_allow_html=True)
 
         if st.button("確認記入今日日誌", use_container_width=True):
             items_payload = [{
@@ -428,37 +419,37 @@ if photo_upload:
                 
                 del st.session_state["analysis_cache"]
                 del st.session_state["cached_file"]
-                st.success("✨ 已成功寫入雲端日誌！")
+                st.success("記錄成功入庫！")
                 st.rerun()
             except Exception as e:
-                st.error(f"寫入資料庫失敗：{e}")
+                st.error(f"寫入雲端失敗：{e}")
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 8. 今日餐點時間軸 (Timeline Cards)
+# 8. 今日飲食時間軸
 # -------------------------------------------------------------
-st.markdown("<div style='font-size: 1.05rem; font-weight: 700; color: #FFFFFF; margin: 24px 0 12px 4px;'>🗓️ 今日飲食時序</div>", unsafe_allow_html=True)
+st.markdown("<h4 style='font-weight: 700; color: #0F172A; margin: 20px 0 10px 4px;'>📋 今日飲食記錄</h4>", unsafe_allow_html=True)
 
 if not today_meals:
     st.markdown("""
-    <div style="text-align: center; padding: 30px 10px; color: #64748B; font-size: 0.88rem;">
-        今日尚無紀錄，拍下第一餐開始智慧減重旅程 ✨
-    </div>
-    """, unsafe_allow_html=True)
+<div style="text-align: center; padding: 24px 10px; color: #94A3B8; font-size: 0.88rem;">
+今日尚無紀錄，拍下第一餐開始計算！
+</div>
+""", unsafe_allow_html=True)
 else:
     for m in today_meals:
         st.markdown(f"""
-        <div class="luxe-card" style="padding: 18px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight: 700; font-size: 1.05rem; color: #FFFFFF;">🍽️ {m.get('meal_type', '餐點')}</span>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #34D399;">{m.get('calories', 0):.0f} kcal</span>
-            </div>
-            <div style="font-size: 0.78rem; color: #64748B; margin: 4px 0 10px 0;">
-                份量：{m.get('portion_multiplier', 1.0)}x 比例
-            </div>
-            <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 10px 14px; font-size: 0.82rem; color: #CBD5E1; line-height: 1.4;">
-                💡 {m.get('advice', '維持均衡飲食。')}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="white-card" style="padding: 16px;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span style="font-weight: 700; font-size: 1.05rem; color: #0F172A;">🥣 {m.get('meal_type', '餐點')}</span>
+<span style="font-weight: 800; font-size: 1.15rem; color: #059669;">{m.get('calories', 0):.0f} kcal</span>
+</div>
+<div style="font-size: 0.8rem; color: #64748B; margin: 3px 0 8px 0;">
+實際份量：{m.get('portion_multiplier', 1.0)}x 比例
+</div>
+<div style="background: #F8FAFC; border-radius: 10px; padding: 10px 12px; font-size: 0.82rem; color: #475569; line-height: 1.4;">
+💡 <b>建議：</b>{m.get('advice', '維持均衡飲食。')}
+</div>
+</div>
+""", unsafe_allow_html=True)
